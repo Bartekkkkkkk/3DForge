@@ -10,7 +10,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=2.2">
+<link rel="stylesheet" href="css/style.css?v=3.0">
 </head>
 <body>
 <div class="page">
@@ -32,13 +32,24 @@
     <div class="grid" style="margin-bottom:20px;">
       <div class="field">
         <label for="currency">Waluta wyceny</label>
-        <div class="input-row">
-          <select id="currency">
+        <div class="input-row currency-row">
+          <select id="currency" class="native-select-hidden" aria-hidden="true" tabindex="-1">
             <option value="PLN" selected>Polski złoty (PLN)</option>
             <option value="EUR">Euro (EUR)</option>
             <option value="USD">Dolar amerykański (USD)</option>
             <option value="GBP">Funt brytyjski (GBP)</option>
           </select>
+          <div class="custom-select" id="currencyCustom">
+            <button type="button" class="custom-select-trigger" id="currencyTrigger" aria-haspopup="listbox" aria-expanded="false">
+              <span id="currencyTriggerText">Polski złoty (PLN)</span><span class="custom-arrow">⌄</span>
+            </button>
+            <div class="custom-select-menu" id="currencyMenu" role="listbox">
+              <button type="button" class="custom-option active" data-value="PLN">Polski złoty (PLN)</button>
+              <button type="button" class="custom-option" data-value="EUR">Euro (EUR)</button>
+              <button type="button" class="custom-option" data-value="USD">Dolar amerykański (USD)</button>
+              <button type="button" class="custom-option" data-value="GBP">Funt brytyjski (GBP)</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="field">
@@ -78,11 +89,7 @@
       <div class="field span2">
         <label for="filamentType">Rodzaj filamentu</label>
         <div class="input-row">
-          <select id="filamentType">
-            <option>PLA</option><option>PETG</option><option>ABS</option>
-            <option selected>ASA</option><option>TPU</option><option>Nylon</option>
-            <option>PC</option><option>Inny</option>
-          </select>
+          <input type="text" id="filamentType" value="ASA" placeholder="Np. PETG, PLA, ASA-CF, TPU 95A">
         </div>
       </div>
       <div class="field">
@@ -238,11 +245,13 @@
     </div>
 
     <div class="breakdown" id="breakdown">
-      <div class="breakdown-row"><span>Materiał</span><span id="bMaterial">PLN 0.00</span></div>
+      <div class="breakdown-row"><span id="bMaterialLabel">Materiał — ASA</span><span id="bMaterial">PLN 0.00</span></div>
+      <div class="breakdown-subrow"><span>Zużycie</span><span id="bMaterialWeight">0 g</span></div>
       <div class="breakdown-row"><span>Energia</span><span id="bEnergy">PLN 0.00</span></div>
       <div class="breakdown-row"><span>Robocizna</span><span id="bLabor">PLN 0.00</span></div>
       <div class="breakdown-row"><span>Sprzęt</span><span id="bEquipment">PLN 0.00</span></div>
-      <div class="breakdown-row"><span>Dodatkowe koszty</span><span id="bOther">PLN 0.00</span></div>
+      <div class="breakdown-list" id="bOtherList"></div>
+      <div class="breakdown-row breakdown-total"><span>Dodatkowe koszty — razem</span><span id="bOther">PLN 0.00</span></div>
       <div class="breakdown-row vat"><span>VAT</span><span id="bVat">PLN 0.00</span></div>
     </div>
 
@@ -272,11 +281,13 @@
     </div>
     <div class="ps-sub" id="psDate">Wycena wydruku 3D</div>
     <div class="ps-rule"></div>
-    <div class="ps-row"><span>Materiał</span><span id="psMaterial">PLN 0.00</span></div>
+    <div class="ps-row"><span id="psMaterialLabel">Materiał — ASA</span><span id="psMaterial">PLN 0.00</span></div>
+    <div class="ps-row ps-subrow"><span>Zużycie</span><span id="psMaterialWeight">0 g</span></div>
     <div class="ps-row"><span>Energia</span><span id="psEnergy">PLN 0.00</span></div>
     <div class="ps-row"><span>Robocizna</span><span id="psLabor">PLN 0.00</span></div>
     <div class="ps-row"><span>Sprzęt</span><span id="psEquipment">PLN 0.00</span></div>
-    <div class="ps-row"><span>Dodatkowe koszty</span><span id="psOther">PLN 0.00</span></div>
+    <div class="ps-list" id="psOtherList"></div>
+    <div class="ps-row ps-other-total"><span>Dodatkowe koszty — razem</span><span id="psOther">PLN 0.00</span></div>
     <div class="ps-row"><span>VAT</span><span id="psVat">PLN 0.00</span></div>
     <div class="ps-total">
       <span class="ps-total-label">Cena końcowa</span>
@@ -286,6 +297,6 @@
   </div>
 </div>
 
-<script src="js/script.js?v=2.2"></script>
+<script src="js/script.js?v=3.0"></script>
 </body>
 </html>

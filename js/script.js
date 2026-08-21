@@ -5,16 +5,16 @@
     const $ = (id) => document.getElementById(id);
 
     const requiredIds = [
-      'currency','gcodeFile','uploadStatus','printH','printM','filamentWeight',
+      'currency','gcodeFile','uploadStatus','printH','printM','filamentWeight','filamentType',
       'spoolPrice','spoolWeight','margin','marginBadge','materialCost',
       'energyMethod','panel-watts','panel-measured','wattage','kwhPrice1',
       'measuredKwh','kwhPrice2','energyCost','prepH','prepM','prepRate',
       'postH','postM','postRate','laborCost','printerPrice','roiYears',
       'dailyHours','dailyHoursBadge','repairPct','repairPctBadge','equipmentCost',
-      'otherRows','addRow','otherCost','vat','bMaterial','bEnergy','bLabor',
-      'bEquipment','bOther','bVat','finalPrice','downloadJpg','printA6',
-      'printSummary','psDate','psMaterial','psEnergy','psLabor','psEquipment',
-      'psOther','psVat','psFinal'
+      'otherRows','addRow','otherCost','vat','bMaterial','bMaterialLabel','bMaterialWeight',
+      'bEnergy','bLabor','bEquipment','bOther','bOtherList','bVat','finalPrice','downloadJpg','printA6',
+      'printSummary','psDate','psMaterial','psMaterialLabel','psMaterialWeight','psEnergy','psLabor','psEquipment',
+      'psOther','psOtherList','psVat','psFinal','currencyCustom','currencyTrigger','currencyTriggerText','currencyMenu'
     ];
 
     const missing = requiredIds.filter((id) => !$(id));
@@ -30,6 +30,44 @@
     const uploadStatus = $('uploadStatus');
     const otherRows = $('otherRows');
     const curLabels = ['curLabel1','curLabel2','curLabel3','curLabel5','curLabel6','curLabel7'];
+    const currencyCustom = $('currencyCustom');
+    const currencyTrigger = $('currencyTrigger');
+    const currencyTriggerText = $('currencyTriggerText');
+    const currencyMenu = $('currencyMenu');
+
+    function setupCurrencyDropdown() {
+      const options = Array.from(currencyMenu.querySelectorAll('.custom-option'));
+
+      const close = () => {
+        currencyCustom.classList.remove('open');
+        currencyTrigger.setAttribute('aria-expanded', 'false');
+      };
+
+      currencyTrigger.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const willOpen = !currencyCustom.classList.contains('open');
+        currencyCustom.classList.toggle('open', willOpen);
+        currencyTrigger.setAttribute('aria-expanded', String(willOpen));
+      });
+
+      options.forEach((option) => {
+        option.addEventListener('click', () => {
+          currencySelect.value = option.dataset.value;
+          currencyTriggerText.textContent = option.textContent;
+          options.forEach((item) => item.classList.toggle('active', item === option));
+          close();
+          currencySelect.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!currencyCustom.contains(event.target)) close();
+      });
+
+      currencyTrigger.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') close();
+      });
+    }
 
     function numberValue(id) {
       const element = $(id);
@@ -37,6 +75,12 @@
       const normalized = String(element.value ?? '').replace(',', '.');
       const value = Number.parseFloat(normalized);
       return Number.isFinite(value) ? Math.max(0, value) : 0;
+    }
+
+    function textValue(id, fallback = '—') {
+      const element = $(id);
+      const value = String(element?.value ?? '').trim();
+      return value || fallback;
     }
 
     function hoursMinutes(hId, mId) {
@@ -49,6 +93,14 @@
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       });
+    }
+
+    function formatWeight(value) {
+      const safe = Number.isFinite(value) ? value : 0;
+      return safe.toLocaleString('pl-PL', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      }) + ' g';
     }
 
     function setText(id, text) {
@@ -74,20 +126,49 @@
       $('panel-measured').classList.toggle('active', energyMethod.value === 'measured');
     }
 
-    function recalc() {
-      updateCurrencyLabels();
+    function getOtherItems() {
+      const items = [];
+      otherRows.querySelectorAll('.other-row').forEach((row) => {
+        const name = row.querySelector('.other-name')?.value?.trim() || 'Dodatkowa pozycja';
+        const raw = row.querySelector('.other-value')?.value ?? '';
+        const value = Number.parseFloat(String(raw).replace(',', '.'));
+        if (Number.isFinite(value) && value > 0) {
+          items.push({ name, value });
+        }
+      });
+      return items;
+    }
 
+    function renderOtherList(targetId, items) {
+      const target = $(targetId);
+      if (!target) return;
+      target.innerHTML = '';
+      items.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = targetId === 'psOtherList' ? 'ps-list-row' : 'breakdown-list-row';
+
+        const name = document.createElement('span');
+        name.textContent = '• ' + item.name;
+
+        const value = document.createElement('span');
+        value.textContent = fmt(item.value);
+
+        row.append(name, value);
+        target.appendChild(row);
+      });
+    }
+
+    function collectValues() {
       const printHours = hoursMinutes('printH', 'printM');
       const filamentWeight = numberValue('filamentWeight');
+      const filamentType = textValue('filamentType');
 
-      // Materiał
       const spoolPrice = numberValue('spoolPrice');
       const spoolWeight = numberValue('spoolWeight');
       const marginPct = numberValue('margin');
       const materialBase = spoolWeight > 0 ? (filamentWeight / spoolWeight) * spoolPrice : 0;
       const materialCost = materialBase * (1 + marginPct / 100);
 
-      // Energia
       let energyKwh = 0;
       let energyUnitPrice = 0;
       if (energyMethod.value === 'measured') {
@@ -99,12 +180,10 @@
       }
       const energyCost = energyKwh * energyUnitPrice;
 
-      // Robocizna
       const prepCost = hoursMinutes('prepH', 'prepM') * numberValue('prepRate');
       const postCost = hoursMinutes('postH', 'postM') * numberValue('postRate');
       const laborCost = prepCost + postCost;
 
-      // Sprzęt
       const printerPrice = numberValue('printerPrice');
       const roiYears = numberValue('roiYears');
       const dailyHours = numberValue('dailyHours');
@@ -116,28 +195,31 @@
         equipmentCost = (totalToRecover / plannedHours) * printHours;
       }
 
-      // Dodatkowe koszty
-      let otherTotal = 0;
-      otherRows.querySelectorAll('.other-value').forEach((input) => {
-        const value = Number.parseFloat(String(input.value || '').replace(',', '.'));
-        if (Number.isFinite(value) && value > 0) otherTotal += value;
-      });
-
-      // VAT i suma
+      const otherItems = getOtherItems();
+      const otherTotal = otherItems.reduce((sum, item) => sum + item.value, 0);
       const subtotal = materialCost + energyCost + laborCost + equipmentCost + otherTotal;
       const vatPct = Math.min(numberValue('vat'), 100);
       const vatAmount = subtotal * (vatPct / 100);
       const finalPrice = subtotal + vatAmount;
 
-      const values = {
+      return {
+        printHours,
+        filamentWeight,
+        filamentType,
         materialCost,
         energyCost,
         laborCost,
         equipmentCost,
+        otherItems,
         otherTotal,
         vatAmount,
         finalPrice
       };
+    }
+
+    function recalc() {
+      updateCurrencyLabels();
+      const values = collectValues();
 
       setText('materialCost', fmt(values.materialCost));
       setText('energyCost', fmt(values.energyCost));
@@ -145,21 +227,31 @@
       setText('equipmentCost', fmt(values.equipmentCost));
       setText('otherCost', fmt(values.otherTotal));
 
+      setText('bMaterialLabel', 'Materiał — ' + values.filamentType);
       setText('bMaterial', fmt(values.materialCost));
+      setText('bMaterialWeight', formatWeight(values.filamentWeight));
       setText('bEnergy', fmt(values.energyCost));
       setText('bLabor', fmt(values.laborCost));
       setText('bEquipment', fmt(values.equipmentCost));
       setText('bOther', fmt(values.otherTotal));
       setText('bVat', fmt(values.vatAmount));
       setText('finalPrice', fmt(values.finalPrice));
+      renderOtherList('bOtherList', values.otherItems);
 
+      setText('psMaterialLabel', 'Materiał — ' + values.filamentType);
       setText('psMaterial', fmt(values.materialCost));
+      setText('psMaterialWeight', formatWeight(values.filamentWeight));
       setText('psEnergy', fmt(values.energyCost));
       setText('psLabor', fmt(values.laborCost));
       setText('psEquipment', fmt(values.equipmentCost));
       setText('psOther', fmt(values.otherTotal));
       setText('psVat', fmt(values.vatAmount));
       setText('psFinal', fmt(values.finalPrice));
+      renderOtherList('psOtherList', values.otherItems);
+
+      const receipt = $('printSummary');
+      receipt.classList.toggle('ps-dense', values.otherItems.length > 7);
+      receipt.classList.toggle('ps-ultra-dense', values.otherItems.length > 14);
     }
 
     function addRow(name, value) {
@@ -197,8 +289,11 @@
       row.append(nameWrap, valueWrap, removeButton);
       otherRows.appendChild(row);
 
-      valueInput.addEventListener('input', recalc);
-      valueInput.addEventListener('change', recalc);
+      [nameInput, valueInput].forEach((el) => {
+        el.addEventListener('input', recalc);
+        el.addEventListener('change', recalc);
+      });
+
       removeButton.addEventListener('click', function () {
         row.remove();
         recalc();
@@ -222,23 +317,15 @@
     function durationFromText(value) {
       if (!value) return null;
       const text = String(value).trim();
-
-      // hh:mm:ss / mm:ss
       let match = text.match(/\b(\d+):([0-5]?\d):([0-5]?\d)\b/);
-      if (match) {
-        return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
-      }
+      if (match) return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
       match = text.match(/\b(\d+):([0-5]?\d)\b/);
-      if (match) {
-        return Number(match[1]) * 60 + Number(match[2]);
-      }
-
+      if (match) return Number(match[1]) * 60 + Number(match[2]);
       const h = text.match(/(\d+(?:[.,]\d+)?)\s*(?:h|hours?|godz(?:\.|iny|ina)?)/i);
       const m = text.match(/(\d+(?:[.,]\d+)?)\s*(?:m(?!m)|mins?|minutes?|minut(?:y|a)?)/i);
       const s = text.match(/(\d+(?:[.,]\d+)?)\s*(?:s|secs?|seconds?|sek(?:\.|undy|unda)?)/i);
       if (!h && !m && !s) return null;
-
-      const n = (matchPart) => matchPart ? Number.parseFloat(matchPart[1].replace(',', '.')) : 0;
+      const n = (part) => part ? Number.parseFloat(part[1].replace(',', '.')) : 0;
       const total = n(h) * 3600 + n(m) * 60 + n(s);
       return Number.isFinite(total) ? total : null;
     }
@@ -263,8 +350,7 @@
       const matches = String(text || '').match(/\d+(?:[.,]\d+)?/g);
       if (!matches || !matches.length) return null;
       const values = matches.map((v) => Number.parseFloat(v.replace(',', '.'))).filter(Number.isFinite);
-      if (!values.length) return null;
-      return values.reduce((sum, value) => sum + value, 0);
+      return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
     }
 
     function parseGcode(text) {
@@ -303,7 +389,6 @@
       for (const pattern of weightLinePatterns) {
         match = source.match(pattern);
         if (match) {
-          // Multi-material slicers sometimes list several gram values separated by commas/semicolons.
           const raw = match[1].trim();
           const candidate = /[,;]\s*\d/.test(raw) ? sumNumbers(raw) : firstNumber(raw);
           if (candidate !== null) {
@@ -338,7 +423,6 @@
       setUploadStatus('', 'Wczytywanie: ' + file.name + '…');
 
       try {
-        // Metadane slicera są zwykle na początku albo końcu pliku. Nie czytamy setek MB bez potrzeby.
         const chunkSize = 4 * 1024 * 1024;
         let text;
         if (file.size > chunkSize * 2) {
@@ -378,7 +462,127 @@
       setText('psDate', 'Wycena z dnia ' + new Date().toLocaleDateString('pl-PL'));
     }
 
-    // ----- Zdarzenia kalkulatora -----
+    function downloadJpg() {
+      const button = $('downloadJpg');
+      updateReceiptDate();
+      recalc();
+      button.disabled = true;
+
+      try {
+        const values = collectValues();
+        // A6 portrait in a 12 px/mm working scale. Same content/order as printSummary.
+        const mm = 12;
+        const width = Math.round(105 * mm);
+        const height = Math.round(148 * mm);
+        const marginX = Math.round(7 * mm);
+        const marginTop = Math.round(7 * mm);
+        const marginBottom = Math.round(7 * mm);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas 2D niedostępny');
+
+        const extraCount = values.otherItems.length;
+        const rowCount = 7 + extraCount; // material, weight, energy, labor, equipment, extra total, VAT + extras
+        const dense = extraCount > 7;
+        const ultra = extraCount > 14;
+        const rowStep = ultra ? 25 : dense ? 30 : 36;
+        const rowFont = ultra ? 15 : dense ? 17 : 19;
+        const smallFont = ultra ? 13 : dense ? 15 : 17;
+        const headerBrand = ultra ? 25 : 29;
+        const headerMeta = ultra ? 13 : 15;
+        const totalFont = ultra ? 27 : dense ? 31 : 36;
+
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = '#000';
+        ctx.textBaseline = 'alphabetic';
+
+        ctx.font = `700 ${headerBrand}px Arial, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText('3DForge', marginX, marginTop + headerBrand);
+        ctx.font = `${headerMeta}px Arial, sans-serif`;
+        ctx.fillText($('psDate').textContent, marginX, marginTop + headerBrand + 28);
+
+        let y = marginTop + headerBrand + 49;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(marginX, y);
+        ctx.lineTo(width - marginX, y);
+        ctx.stroke();
+        y += ultra ? 25 : 34;
+
+        const separator = (lineY) => {
+          ctx.strokeStyle = '#bdbdbd';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(marginX, lineY);
+          ctx.lineTo(width - marginX, lineY);
+          ctx.stroke();
+        };
+
+        const drawRow = (label, value, small = false, indent = 0) => {
+          const fontSize = small ? smallFont : rowFont;
+          ctx.fillStyle = '#000';
+          ctx.font = `${fontSize}px Arial, sans-serif`;
+          ctx.textAlign = 'left';
+          ctx.fillText(label, marginX + indent, y);
+          ctx.font = `${fontSize}px "Courier New", monospace`;
+          ctx.textAlign = 'right';
+          ctx.fillText(value, width - marginX, y);
+          separator(y + 8);
+          y += small ? Math.max(22, rowStep - 5) : rowStep;
+        };
+
+        drawRow('Materiał — ' + values.filamentType, fmt(values.materialCost));
+        drawRow('Zużycie', formatWeight(values.filamentWeight), true, 20);
+        drawRow('Energia', fmt(values.energyCost));
+        drawRow('Robocizna', fmt(values.laborCost));
+        drawRow('Sprzęt', fmt(values.equipmentCost));
+
+        values.otherItems.forEach((item) => {
+          drawRow('• ' + item.name, fmt(item.value), true, 20);
+        });
+
+        drawRow('Dodatkowe koszty — razem', fmt(values.otherTotal));
+        drawRow('VAT', fmt(values.vatAmount));
+
+        y += ultra ? 10 : 18;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(marginX, y);
+        ctx.lineTo(width - marginX, y);
+        ctx.stroke();
+        y += ultra ? 20 : 28;
+
+        ctx.font = `700 ${ultra ? 13 : 15}px Arial, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText('CENA KOŃCOWA', marginX, y);
+        y += ultra ? 25 : 32;
+        ctx.font = `700 ${totalFont}px Arial, sans-serif`;
+        ctx.fillText(fmt(values.finalPrice), marginX, y);
+
+        ctx.font = `${ultra ? 11 : 13}px Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('wygenerowano w 3DForge', width / 2, height - marginBottom);
+
+        const link = document.createElement('a');
+        link.download = '3DForge-wycena-A6.jpg';
+        link.href = canvas.toDataURL('image/jpeg', 0.98);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } catch (error) {
+        console.error('3DForge: błąd eksportu JPG', error);
+        window.alert('Nie udało się wygenerować JPG. Spróbuj ponownie.');
+      } finally {
+        button.disabled = false;
+      }
+    }
+
     const recalcInputs = [
       'printH','printM','filamentWeight','filamentType','spoolPrice','spoolWeight',
       'wattage','kwhPrice1','measuredKwh','kwhPrice2',
@@ -445,113 +649,14 @@
       });
     }
 
-    $('downloadJpg').addEventListener('click', function () {
-      const button = this;
-      updateReceiptDate();
-      recalc();
-      button.disabled = true;
-
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 1200;
-        canvas.height = 1600;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Canvas 2D niedostępny');
-
-        // Tło
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Pasek marki
-        ctx.fillStyle = '#191b24';
-        ctx.fillRect(0, 0, canvas.width, 210);
-        ctx.fillStyle = '#ff7a30';
-        ctx.fillRect(0, 210, canvas.width, 12);
-
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillStyle = '#ffb043';
-        ctx.font = '700 78px Arial, sans-serif';
-        ctx.fillText('3DForge', 90, 125);
-        ctx.fillStyle = '#c9ccda';
-        ctx.font = '32px Arial, sans-serif';
-        ctx.fillText('Wycena wydruku 3D', 90, 177);
-
-        ctx.fillStyle = '#6a7192';
-        ctx.font = '28px Arial, sans-serif';
-        ctx.fillText($('psDate').textContent, 90, 295);
-
-        const rows = [
-          ['Materiał', $('psMaterial').textContent],
-          ['Energia', $('psEnergy').textContent],
-          ['Robocizna', $('psLabor').textContent],
-          ['Sprzęt', $('psEquipment').textContent],
-          ['Dodatkowe koszty', $('psOther').textContent],
-          ['VAT', $('psVat').textContent]
-        ];
-
-        let y = 410;
-        ctx.font = '34px Arial, sans-serif';
-        rows.forEach(([label, value]) => {
-          ctx.fillStyle = '#6a7192';
-          ctx.textAlign = 'left';
-          ctx.fillText(label, 90, y);
-          ctx.fillStyle = '#292c38';
-          ctx.textAlign = 'right';
-          ctx.fillText(value, 1110, y);
-
-          ctx.strokeStyle = '#e2e4ec';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([10, 10]);
-          ctx.beginPath();
-          ctx.moveTo(90, y + 36);
-          ctx.lineTo(1110, y + 36);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          y += 135;
-        });
-
-        // Cena końcowa
-        ctx.strokeStyle = '#191b24';
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(90, 1235);
-        ctx.lineTo(1110, 1235);
-        ctx.stroke();
-
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#8890ab';
-        ctx.font = '700 28px Arial, sans-serif';
-        ctx.fillText('CENA KOŃCOWA', 90, 1315);
-
-        ctx.fillStyle = '#c94e12';
-        ctx.font = '700 78px Arial, sans-serif';
-        ctx.fillText($('psFinal').textContent, 90, 1415);
-
-        ctx.fillStyle = '#a4a9c0';
-        ctx.font = '24px Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('wygenerowano w 3DForge', 600, 1530);
-
-        const link = document.createElement('a');
-        link.download = '3DForge-wycena.jpg';
-        link.href = canvas.toDataURL('image/jpeg', 0.95);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      } catch (error) {
-        console.error('3DForge: błąd eksportu JPG', error);
-        window.alert('Nie udało się wygenerować JPG. Spróbuj ponownie.');
-      } finally {
-        button.disabled = false;
-      }
-    });
-
+    $('downloadJpg').addEventListener('click', downloadJpg);
     $('printA6').addEventListener('click', function () {
       updateReceiptDate();
+      recalc();
       window.print();
     });
 
-    // ----- Inicjalizacja dopiero po podpięciu wszystkich zależności -----
+    setupCurrencyDropdown();
     updateSliderBadge('margin', 'marginBadge', ' %');
     updateSliderBadge('dailyHours', 'dailyHoursBadge', ' h');
     updateSliderBadge('repairPct', 'repairPctBadge', ' %');
@@ -561,8 +666,6 @@
     recalc();
   }
 
-  // Skrypt jest ładowany na końcu <body>, więc uruchamiamy kalkulator od razu.
-  // Dzięki temu zewnętrzny moduł JPG nie może opóźnić działania kalkulatora.
   if (document.getElementById('currency')) {
     init();
   } else {
