@@ -10,7 +10,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=3.0">
+<link rel="stylesheet" href="css/style.css?v=4.1">
 </head>
 <body>
 <div class="page">
@@ -35,20 +35,12 @@
         <div class="input-row currency-row">
           <select id="currency" class="native-select-hidden" aria-hidden="true" tabindex="-1">
             <option value="PLN" selected>Polski złoty (PLN)</option>
-            <option value="EUR">Euro (EUR)</option>
-            <option value="USD">Dolar amerykański (USD)</option>
-            <option value="GBP">Funt brytyjski (GBP)</option>
           </select>
           <div class="custom-select" id="currencyCustom">
             <button type="button" class="custom-select-trigger" id="currencyTrigger" aria-haspopup="listbox" aria-expanded="false">
               <span id="currencyTriggerText">Polski złoty (PLN)</span><span class="custom-arrow">⌄</span>
             </button>
-            <div class="custom-select-menu" id="currencyMenu" role="listbox">
-              <button type="button" class="custom-option active" data-value="PLN">Polski złoty (PLN)</button>
-              <button type="button" class="custom-option" data-value="EUR">Euro (EUR)</button>
-              <button type="button" class="custom-option" data-value="USD">Dolar amerykański (USD)</button>
-              <button type="button" class="custom-option" data-value="GBP">Funt brytyjski (GBP)</button>
-            </div>
+            <div class="custom-select-menu" id="currencyMenu" role="listbox"></div>
           </div>
         </div>
       </div>
@@ -293,10 +285,10 @@
       <span class="ps-total-label">Cena końcowa</span>
       <span class="ps-total-value" id="psFinal">PLN 0.00</span>
     </div>
-    <div class="ps-footer">wygenerowano w 3DForge</div>
+    <div class="ps-footer">Wygenerowano w 3DForge - Druk oraz projektowanie CAD.</div>
   </div>
 </div>
 
-<script src="js/script.js?v=3.0"></script>
+<script src="js/script.js?v=4.1"></script>
 </body>
 </html>

@@ -630,7 +630,7 @@ select option{
 #printSummary .ps-total{margin-top:4mm;padding-top:3mm;border-top:1.2px solid #000;}
 #printSummary .ps-total-label{font-size:10px;letter-spacing:.12em;}
 #printSummary .ps-total-value{font-size:22px;line-height:1.1;}
-#printSummary .ps-footer{margin-top:4mm;font-size:9px;}
+#printSummary .ps-footer{margin-top:4mm;font-size:9px; text-align:center;}
 
 @media print{
   html, body{width:105mm;height:148mm;background:#fff !important;}
@@ -702,6 +702,11 @@ select option{
   border-radius:10px;
   background:#12131a;
   box-shadow:0 14px 35px rgba(0,0,0,.45),0 0 0 1px rgba(255,122,48,.06);
+  max-height:320px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:var(--steel) #12131a;
 }
 .custom-select.open .custom-select-menu{display:block;}
 .custom-option{
@@ -742,13 +747,14 @@ select option{
   box-sizing:border-box;
   font-family:Arial,sans-serif;
 }
-#printSummary .ps-logo{display:none !important;}
-#printSummary .ps-header{display:block;margin:0 0 1.5mm;}
+#printSummary .ps-logo{display:block !important; width:10mm; height:10mm; object-fit:cover; filter:grayscale(1) contrast(1.15);}
+#printSummary .ps-header{display:flex; align-items:center; gap:3mm; margin:0 0 1.5mm;}
 #printSummary .ps-brand{
   color:#000 !important;
   font-family:Arial,sans-serif;
   font-size:20px;
   font-weight:700;
+  line-height:1;
 }
 #printSummary .ps-sub{
   margin:0 0 3mm;
@@ -866,3 +872,10 @@ select option{
   .page > *:not(#printSummary){display:none !important;}
   #printSummary{display:block !important;visibility:visible !important;}
 }
+
+.custom-select-menu::-webkit-scrollbar{width:9px;}
+.custom-select-menu::-webkit-scrollbar-track{background:#12131a;}
+.custom-select-menu::-webkit-scrollbar-thumb{background:var(--steel);border-radius:10px;border:2px solid #12131a;}
+#printSummary .ps-footer{font-size:8.2px;white-space:nowrap;}
+#printSummary.ps-dense .ps-footer{font-size:7.8px;}
+#printSummary.ps-ultra-dense .ps-footer{font-size:6.8px;}

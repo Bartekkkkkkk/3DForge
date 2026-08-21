@@ -35,6 +35,63 @@
     const currencyTriggerText = $('currencyTriggerText');
     const currencyMenu = $('currencyMenu');
 
+
+    // Aktualne waluty państw i terytoriów wg kodów ISO 4217.
+    // Nazwy są lokalizowane przez przeglądarkę na język polski.
+    const worldCurrencyCodes = [
+      'AED','AFN','ALL','AMD','AOA','ARS','AUD','AWG','AZN','BAM','BBD','BDT','BGN','BHD','BIF','BMD','BND','BOB','BRL','BSD','BTN','BWP','BYN','BZD','CAD','CDF','CHF','CLP','CNY','COP','CRC','CUP','CVE','CZK','DJF','DKK','DOP','DZD','EGP','ERN','ETB','EUR','FJD','FKP','GBP','GEL','GHS','GIP','GMD','GNF','GTQ','GYD','HKD','HNL','HTG','HUF','IDR','ILS','INR','IQD','IRR','ISK','JMD','JOD','JPY','KES','KGS','KHR','KMF','KPW','KRW','KWD','KYD','KZT','LAK','LBP','LKR','LRD','LSL','LYD','MAD','MDL','MGA','MKD','MMK','MNT','MOP','MRU','MUR','MVR','MWK','MXN','MYR','MZN','NAD','NGN','NIO','NOK','NPR','NZD','OMR','PAB','PEN','PGK','PHP','PKR','PLN','PYG','QAR','RON','RSD','RUB','RWF','SAR','SBD','SCR','SDG','SEK','SGD','SHP','SLE','SOS','SRD','SSP','STN','SVC','SYP','SZL','THB','TJS','TMT','TND','TOP','TRY','TTD','TWD','TZS','UAH','UGX','USD','UYU','UZS','VES','VND','VUV','WST','XAF','XCD','XCG','XOF','XPF','YER','ZAR','ZMW','ZWG'
+    ];
+
+    function populateCurrencies() {
+      let displayNames = null;
+      try {
+        displayNames = new Intl.DisplayNames(['pl'], { type: 'currency' });
+      } catch (_) {}
+
+      const preferred = ['PLN','EUR','USD','GBP','CHF'];
+      const unique = Array.from(new Set(worldCurrencyCodes));
+      const labelFor = (code) => {
+        let name = code;
+        try { name = displayNames ? displayNames.of(code) : code; } catch (_) {}
+        if (!name || name === code) return code;
+        return name.charAt(0).toUpperCase() + name.slice(1) + ' (' + code + ')';
+      };
+
+      const records = unique.map((code) => ({ code, label: labelFor(code) }));
+      records.sort((a, b) => {
+        const ai = preferred.indexOf(a.code);
+        const bi = preferred.indexOf(b.code);
+        if (ai !== -1 || bi !== -1) {
+          if (ai === -1) return 1;
+          if (bi === -1) return -1;
+          return ai - bi;
+        }
+        return a.label.localeCompare(b.label, 'pl');
+      });
+
+      currencySelect.innerHTML = '';
+      currencyMenu.innerHTML = '';
+      records.forEach(({ code, label }) => {
+        const option = document.createElement('option');
+        option.value = code;
+        option.textContent = label;
+        option.selected = code === 'PLN';
+        currencySelect.appendChild(option);
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'custom-option' + (code === 'PLN' ? ' active' : '');
+        button.dataset.value = code;
+        button.setAttribute('role', 'option');
+        button.setAttribute('aria-selected', code === 'PLN' ? 'true' : 'false');
+        button.textContent = label;
+        currencyMenu.appendChild(button);
+      });
+      currencySelect.value = 'PLN';
+      const selected = records.find((item) => item.code === 'PLN');
+      currencyTriggerText.textContent = selected ? selected.label : 'Polski złoty (PLN)';
+    }
+
     function setupCurrencyDropdown() {
       const options = Array.from(currencyMenu.querySelectorAll('.custom-option'));
 
@@ -54,7 +111,11 @@
         option.addEventListener('click', () => {
           currencySelect.value = option.dataset.value;
           currencyTriggerText.textContent = option.textContent;
-          options.forEach((item) => item.classList.toggle('active', item === option));
+          options.forEach((item) => {
+            const active = item === option;
+            item.classList.toggle('active', active);
+            item.setAttribute('aria-selected', active ? 'true' : 'false');
+          });
           close();
           currencySelect.dispatchEvent(new Event('change', { bubbles: true }));
         });
@@ -237,6 +298,9 @@
       setText('bVat', fmt(values.vatAmount));
       setText('finalPrice', fmt(values.finalPrice));
       renderOtherList('bOtherList', values.otherItems);
+      const hasOtherCosts = values.otherItems.length > 0;
+      const bOtherTotalRow = $('bOther').closest('.breakdown-row');
+      if (bOtherTotalRow) bOtherTotalRow.style.display = hasOtherCosts ? '' : 'none';
 
       setText('psMaterialLabel', 'Materiał — ' + values.filamentType);
       setText('psMaterial', fmt(values.materialCost));
@@ -248,6 +312,8 @@
       setText('psVat', fmt(values.vatAmount));
       setText('psFinal', fmt(values.finalPrice));
       renderOtherList('psOtherList', values.otherItems);
+      const psOtherTotalRow = $('psOther').closest('.ps-row');
+      if (psOtherTotalRow) psOtherTotalRow.style.display = hasOtherCosts ? '' : 'none';
 
       const receipt = $('printSummary');
       receipt.classList.toggle('ps-dense', values.otherItems.length > 7);
@@ -499,13 +565,29 @@
         ctx.fillStyle = '#000';
         ctx.textBaseline = 'alphabetic';
 
+        const logoImg = document.querySelector('#printSummary .ps-logo');
+        const logoSize = ultra ? 32 : dense ? 38 : 44;
+        const brandX = marginX + logoSize + 14;
+        const headerY = marginTop + headerBrand;
+
+        if (logoImg && logoImg.complete) {
+          try {
+            ctx.save();
+            ctx.filter = 'grayscale(1) contrast(1.15)';
+            ctx.drawImage(logoImg, marginX, marginTop, logoSize, logoSize);
+            ctx.restore();
+          } catch (e) {
+            ctx.drawImage(logoImg, marginX, marginTop, logoSize, logoSize);
+          }
+        }
+
         ctx.font = `700 ${headerBrand}px Arial, sans-serif`;
         ctx.textAlign = 'left';
-        ctx.fillText('3DForge', marginX, marginTop + headerBrand);
+        ctx.fillText('3DForge', brandX, headerY);
         ctx.font = `${headerMeta}px Arial, sans-serif`;
-        ctx.fillText($('psDate').textContent, marginX, marginTop + headerBrand + 28);
+        ctx.fillText($('psDate').textContent, brandX, headerY + 28);
 
-        let y = marginTop + headerBrand + 49;
+        let y = marginTop + Math.max(logoSize, headerBrand + 18) + 22;
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -546,7 +628,9 @@
           drawRow('• ' + item.name, fmt(item.value), true, 20);
         });
 
-        drawRow('Dodatkowe koszty — razem', fmt(values.otherTotal));
+        if (values.otherItems.length > 0) {
+          drawRow('Dodatkowe koszty — razem', fmt(values.otherTotal));
+        }
         drawRow('VAT', fmt(values.vatAmount));
 
         y += ultra ? 10 : 18;
@@ -567,7 +651,7 @@
 
         ctx.font = `${ultra ? 11 : 13}px Arial, sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText('wygenerowano w 3DForge', width / 2, height - marginBottom);
+        ctx.fillText('Wygenerowano w 3DForge - Druk oraz projektowanie CAD.', width / 2, height - marginBottom);
 
         const link = document.createElement('a');
         link.download = '3DForge-wycena-A6.jpg';
@@ -656,6 +740,7 @@
       window.print();
     });
 
+    populateCurrencies();
     setupCurrencyDropdown();
     updateSliderBadge('margin', 'marginBadge', ' %');
     updateSliderBadge('dailyHours', 'dailyHoursBadge', ' h');
