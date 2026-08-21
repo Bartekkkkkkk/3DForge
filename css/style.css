@@ -747,8 +747,8 @@ select option{
   box-sizing:border-box;
   font-family:Arial,sans-serif;
 }
-#printSummary .ps-logo{display:block !important; width:10mm; height:10mm; object-fit:cover; filter:grayscale(1) contrast(1.15);}
-#printSummary .ps-header{display:flex; align-items:center; gap:3mm; margin:0 0 1.5mm;}
+#printSummary .ps-logo{display:none !important;}
+#printSummary .ps-header{display:block; margin:0 0 1.5mm;}
 #printSummary .ps-brand{
   color:#000 !important;
   font-family:Arial,sans-serif;
@@ -879,3 +879,5 @@ select option{
 #printSummary .ps-footer{font-size:8.2px;white-space:nowrap;}
 #printSummary.ps-dense .ps-footer{font-size:7.8px;}
 #printSummary.ps-ultra-dense .ps-footer{font-size:6.8px;}
+
+#printSummary > .ps-row:last-of-type{border-bottom:none;}

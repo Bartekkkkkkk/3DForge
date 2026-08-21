@@ -565,29 +565,13 @@
         ctx.fillStyle = '#000';
         ctx.textBaseline = 'alphabetic';
 
-        const logoImg = document.querySelector('#printSummary .ps-logo');
-        const logoSize = ultra ? 32 : dense ? 38 : 44;
-        const brandX = marginX + logoSize + 14;
-        const headerY = marginTop + headerBrand;
-
-        if (logoImg && logoImg.complete) {
-          try {
-            ctx.save();
-            ctx.filter = 'grayscale(1) contrast(1.15)';
-            ctx.drawImage(logoImg, marginX, marginTop, logoSize, logoSize);
-            ctx.restore();
-          } catch (e) {
-            ctx.drawImage(logoImg, marginX, marginTop, logoSize, logoSize);
-          }
-        }
-
         ctx.font = `700 ${headerBrand}px Arial, sans-serif`;
         ctx.textAlign = 'left';
-        ctx.fillText('3DForge', brandX, headerY);
+        ctx.fillText('3DForge', marginX, marginTop + headerBrand);
         ctx.font = `${headerMeta}px Arial, sans-serif`;
-        ctx.fillText($('psDate').textContent, brandX, headerY + 28);
+        ctx.fillText($('psDate').textContent, marginX, marginTop + headerBrand + 28);
 
-        let y = marginTop + Math.max(logoSize, headerBrand + 18) + 22;
+        let y = marginTop + headerBrand + 49;
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -605,7 +589,7 @@
           ctx.stroke();
         };
 
-        const drawRow = (label, value, small = false, indent = 0) => {
+        const drawRow = (label, value, small = false, indent = 0, drawSeparator = true) => {
           const fontSize = small ? smallFont : rowFont;
           ctx.fillStyle = '#000';
           ctx.font = `${fontSize}px Arial, sans-serif`;
@@ -614,7 +598,7 @@
           ctx.font = `${fontSize}px "Courier New", monospace`;
           ctx.textAlign = 'right';
           ctx.fillText(value, width - marginX, y);
-          separator(y + 8);
+          if (drawSeparator) separator(y + 8);
           y += small ? Math.max(22, rowStep - 5) : rowStep;
         };
 
@@ -631,7 +615,7 @@
         if (values.otherItems.length > 0) {
           drawRow('Dodatkowe koszty — razem', fmt(values.otherTotal));
         }
-        drawRow('VAT', fmt(values.vatAmount));
+        drawRow('VAT', fmt(values.vatAmount), false, 0, false);
 
         y += ultra ? 10 : 18;
         ctx.strokeStyle = '#000';
